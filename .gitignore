@@ -1,0 +1,9 @@
+# general
+.
+..
+
+# vscode
+.vscode
+
+# playbook
+*.retry
