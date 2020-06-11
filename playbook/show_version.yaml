@@ -1,0 +1,59 @@
+---
+- hosts: junos
+  connection: local
+  gather_facts: no
+  become: yes
+
+  vars:
+    #ptn: "Junos: 15.1|Junos: 15.2"
+    ptn: "Junos: 14.1|Junos: 14.2"
+
+  tasks:
+    - name: main
+      block:
+        - name: display version
+          junos_command:
+            commands:
+              - show version | no-more
+          when: ansible_network_os == "junos"
+          register: result
+          failed_when: result.stdout[0] is not search(ptn)
+          changed_when: false
+        - name: debug result.stdout_lines
+          debug:
+            msg: "{{ result.stdout_lines }}"
+        
+        - name: Use the attachments API
+          slack:
+            username: "{{ lookup('env', 'SLACKBOT_NAME') | default('ansibleBot')  }}"
+            token: "{{ lookup('env', 'INCOMING_WEBHOOK_URL_SLACKFORMAT') }}"
+            channel: "{{ lookup('env', 'DST_CHANNEL') }}"
+            attachments:
+            - title: display version [ " {{ ptn }} "]
+              text: "Successful"
+              color: "#ff00dd"
+              fields:
+              - title: Hostname
+                value: "{{ inventory_hostname }}"
+                short: False
+              - title: "The output"
+                value: "{{ result.stdout[0] | default('None', true)}}"
+                short: False
+
+      rescue:
+        - name: Use the attachments API
+          slack:
+            username: "{{ lookup('env', 'SLACKBOT_NAME') | default('ansibleBot')  }}"
+            token: "{{ lookup('env', 'INCOMING_WEBHOOK_URL_SLACKFORMAT') }}"
+            channel: "{{ lookup('env', 'DST_CHANNEL') }}"
+            attachments:
+            - title: display current time [ " {{ ptn }} "]
+              text: <!here> `Failed`
+              color: "#ff00dd"
+              fields:
+              - title: Hostname
+                value: "{{ inventory_hostname }}"
+                short: False
+              - title: "The output"
+                value: "{{ result.stdout[0] | default('None', true)}}"
+                short: False
